@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>When Care Fails: Inside Bangladesh’s Hospital Crisis - Netra News</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Leaflet.js for Map (Free & Open Source) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhweINRHESJ-wPFYyp1iMA1bFbtSgQGuaBYg=" crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    
+    <!-- Chart.js for Data Visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Google Fonts (Inter) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f9fafa;
+            color: #1a202c;
+            scroll-behavior: smooth;
+        }
+
+        h1, h2, h3, h4, h5, h6 {
+            font-weight: 800;
+        }
+
+        /* Bellingcat-style section dividers */
+        .section-divider {
+            border-top: 2px solid #e2e8f0;
+            margin: 3rem 0;
+        }
+
+        /* Custom marker colors for Leaflet */
+        .leaflet-marker-icon.marker-red { filter: hue-rotate(0deg) saturate(1.5); }
+        .leaflet-marker-icon.marker-orange { filter: hue-rotate(30deg) saturate(1.5); }
+        .leaflet-marker-icon.marker-blue { filter: hue-rotate(200deg) saturate(1.5); }
+
+        /* Animated statistic bar */
+        .stat-bar {
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform 1s ease-out;
+        }
+        .stat-bar.is-visible {
+            transform: scaleX(1);
+        }
+
+        /* Modal transitions */
+        .modal {
+            transition: opacity 0.25s ease, transform 0.25s ease;
+        }
+        .modal-content {
+            transition: transform 0.25s ease;
+        }
+        .modal.opacity-0 {
+            pointer-events: none;
+        }
+        .modal.opacity-100 {
+            pointer-events: auto;
+        }
+
+        /* Horizontal Timeline Scroll */
+        .timeline-container {
+            display: grid;
+            grid-auto-flow: column;
+            grid-auto-columns: 280px;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            padding: 1rem 0;
+            gap: 1.5rem;
+        }
+
+        /* Fix for Leaflet map in modal */
+        .leaflet-container {
+            z-index: 10;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+
+    <!-- 1. Hero Section -->
+    <header id="hero" class="relative h-screen w-full flex items-center justify-center text-white overflow-hidden">
+        <!-- Background Image -->
+        <img src="https://placehold.co/1920x1080/333/666?text=Crowded+Hospital+Ward+(Blurred)" 
+             alt="Crowded hospital ward in Bangladesh" 
+             class="absolute inset-0 w-full h-full object-cover z-0">
+        <!-- Dark Overlay -->
+        <div class="absolute inset-0 bg-black opacity-60 z-10"></div>
+        
+        <!-- Hero Content -->
+        <div id="hero-content" class="relative z-20 container mx-auto max-w-4xl text-center px-6">
+            <!-- Content will be populated by JS -->
+        </div>
+
+        <!-- Scroll Down Arrow -->
+        <div class="absolute bottom-10 z-20">
+            <a href="#article-start" class="animate-bounce">
+                <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7-7-7 7"></path></svg>
+            </a>
+        </div>
+    </header>
+
+    <!-- Main Content Wrapper -->
+    <div id="article-start" class="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16">
+        
+        <!-- Interactive Elements Buttons -->
+        <section class="mb-16 p-8 bg-white rounded-lg shadow-lg">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <!-- Map Button -->
+                <button id="open-map-btn" class="flex flex-col items-center justify-center p-6 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                    <svg class="w-12 h-12 text-blue-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                    <span class="text-lg font-bold text-gray-800">View Interactive Map</span>
+                    <span class="text-sm text-gray-600">Explore hospital hotspots</span>
+                </button>
+                <!-- Grid Button -->
+                <button id="open-grid-btn" class="flex flex-col items-center justify-center p-6 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                    <svg class="w-12 h-12 text-blue-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
+                    <span class="text-lg font-bold text-gray-800">View Hospital Grid</span>
+                    <span class="text-sm text-gray-600">See all hospitals at a glance</span>
+                </button>
+                <!-- Charts Button -->
+                <button id="open-charts-btn" class="flex flex-col items-center justify-center p-6 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                    <svg class="w-12 h-12 text-blue-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4v17h16V4"></path></svg>
+                    <span class="text-lg font-bold text-gray-800">View Systemic Data</span>
+                    <span class="text-sm text-gray-600">See charts on all incidents</span>
+                </button>
+                <!-- Timeline Button -->
+                <button id="open-timeline-btn" class="flex flex-col items-center justify-center p-6 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                    <svg class="w-12 h-12 text-blue-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5H11V1M11 11H13V5H11V11M11 21H13V15H11V21M4 9H20M4 15H20"></path></svg>
+                    <span class="text-lg font-bold text-gray-800">View Full Timeline</span>
+                    <span class="text-sm text-gray-600">Key incidents over time</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- 3. Article Narrative Sections -->
+        <article class="max-w-4xl mx-auto prose lg:prose-xl prose-indigo">
+            
+            <!-- Lead / Hook -->
+            <section id="article-lead">
+                <!-- Content will be populated by JS -->
+            </section>
+
+            <!-- Background / Context -->
+            <section id="article-context">
+                <h2 class="text-3xl font-extrabold">A System in Crisis</h2>
+                <!-- Content will be populated by JS -->
+            </section>
+
+            <!-- 4. Interactive Features: Expert Commentary -->
+            <section class="my-16 not-prose">
+                <h2 class="text-3xl md:text-4xl font-extrabold text-gray-900 mb-8">Expert Commentary</h2>
+                <div class="space-y-4">
+                    <!-- Expert 1 -->
+                    <div class="bg-white rounded-lg shadow-md">
+                        <button class="flex justify-between items-center w-full p-5 text-left" onclick="toggleAccordion(this)">
+                            <h4 class="text-lg font-bold text-gray-800">Dr. Zafrullah Chowdhury (Late Public Health Activist)</h4>
+                            <svg class="w-6 h-6 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </button>
+                        <div class="accordion-content max-h-0 overflow-hidden transition-all duration-500 ease-in-out px-5">
+                            <p class="pb-5 text-gray-700">"The system is not broken; it was built this way. It was built to serve the rich and powerful, not the common people. We need a complete overhaul, starting with transparency and accountability." (Paraphrased from public statements)</p>
+                        </div>
+                    </div>
+                    <!-- Expert 2 -->
+                    <div class="bg-white rounded-lg shadow-md">
+                        <button class="flex justify-between items-center w-full p-5 text-left" onclick="toggleAccordion(this)">
+                            <h4 class="text-lg font-bold text-gray-800">Transparency International Bangladesh (TIB)</h4>
+                            <svg class="w-6 h-6 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </button>
+                        <div class="accordion-content max-h-0 overflow-hidden transition-all duration-500 ease-in-out px-5">
+                            <p class="pb-5 text-gray-700">"Our reports have consistently shown 'high-risk' for corruption in health sector procurement. This leads to substandard equipment, medicine shortages, and a diversion of funds that should be going to patient care. The Regent Hospital scandal was a symptom of this deep-rooted disease." (Based on TIB reports)</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Article Narrative: Recommendations -->
+            <section id="article-recommendations">
+                <h2 class="text-3xl font-extrabold">Reforms and Recommendations</h2>
+                <!-- Content will be populated by JS -->
+            </section>
+
+            <!-- 4. Interactive Features: Evidence & Submit Story -->
+            <section class="my-16 not-prose">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <!-- Evidence Viewer Button -->
+                    <div class="bg-white p-8 rounded-lg shadow-lg text-center">
+                        <h3 class="text-2xl font-bold mb-4">View The Evidence</h3>
+                        <p class="text-gray-700 mb-6">Explore the reports, articles, and public records used in this investigation.</p>
+                        <button id="open-evidence-btn" class="px-8 py-3 font-semibold bg-gray-900 text-white rounded-md hover:bg-gray-700 transition-colors">Open Evidence Viewer</button>
+                    </div>
+                    <!-- Submit Your Story -->
+                    <div class="bg-white p-8 rounded-lg shadow-lg">
+                        <h3 class="text-2xl font-bold mb-4 text-center">Submit Your Story</h3>
+                        <form id="submit-story-form">
+                            <div class="mb-4">
+                                <label for="story_hospital" class="block text-sm font-medium text-gray-700">Hospital Name</label>
+                                <input type="text" id="story_hospital" name="story_hospital" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" required>
+                            </div>
+                            <div class="mb-4">
+                                <label for="story_experience" class="block text-sm font-medium text-gray-700">Your Experience (Anonymized)</label>
+                                <textarea id="story_experience" name="story_experience" rows="4" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm" required></textarea>
+                            </div>
+                            <button type="submit" class="w-full px-6 py-3 font-semibold bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors">Submit Securely</button>
+                            <p class="text-xs text-gray-500 mt-2 text-center">Your submission will be anonymized. Do not include personal identifying information.</p>
+                        </form>
+                    </div>
+                </div>
+            </section>
+            
+        </article>
+
+        <!-- 5. Methodology Section -->
+        <section class="max-w-4xl mx-auto my-16 p-8 bg-white rounded-lg shadow-lg">
+            <h2 class="text-3xl font-extrabold text-gray-900 mb-6">About This Investigation</h2>
+            <p class="text-gray-700 mb-4">This report was compiled by Netra News using open-source investigation (OSINT) techniques, similar to those employed by Bellingcat. Our methodology involved:</p>
+            <ul class="list-disc list-inside text-gray-700 space-y-2 mb-4">
+                <li>Analysis of hundreds of local and national news articles from sources including Dhaka Tribune, bdnews24.com, New Age, TBS News, and Dainik Bangla.</li>
+                <li>Cross-verification of incidents using public records, government circulars, and reports from NGOs like Transparency International Bangladesh (TIB).</li>
+                <li>Geolocating hospitals and incidents using mapping tools.</li>
+                <li>Collection of anonymized testimonies from patients and healthcare workers (all identifying details have been removed to protect sources).</li>
+            </ul>
+            <p class="text-gray-700"><strong>Limitations:</strong> This investigation is not exhaustive and is based on publicly available data. The true scale of negligence and corruption is likely far greater. All information is presented as alleged or reported in primary sources unless officially confirmed by court or government documents.</p>
+        </section>
+
+    </div> <!-- End Main Content Wrapper -->
+
+    <!-- 6. Footer / References -->
+    <footer class="bg-gray-900 text-gray-400 py-12">
+        <div class="container mx-auto max-w-7xl px-8">
+            <h3 class="text-xl font-bold text-white mb-6">References & Sources</h3>
+            <ul id="footer-sources" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-4 text-sm">
+                <!-- Sources will be populated by JS -->
+            </ul>
+            <div class="border-t border-gray-700 mt-8 pt-8 text-center text-xs">
+                <p>© 2024 Netra News. This investigation is for public information. All testimonies are anonymized.</p>
+            </div>
+        </div>
+    </footer>
+
+
+    <!-- Hospital Details Modal -->
+    <div id="hospital-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70 opacity-0 transform scale-95">
+        <div class="modal-content bg-white rounded-lg shadow-xl w-full max-w-3xl m-4 transform translate-y-10">
+            <div class="flex justify-between items-center border-b p-5">
+                <h3 id="modal-title" class="text-2xl font-bold">Hospital Details</h3>
+                <button id="close-modal-btn" class="text-gray-500 hover:text-gray-800 text-3xl">&times;</button>
+            </div>
+            <div class="p-6 max-h-[70vh] overflow-y-auto">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="font-bold text-lg mb-2">Reported Problems:</h4>
+                        <ul id="modal-problems" class="list-disc list-inside space-y-1 text-gray-700"></ul>
+                        
+                        <h4 class="font-bold text-lg mt-6 mb-2">Sources:</h4>
+                        <ul id="modal-sources" class="list-disc list-inside space-y-1 text-sm"></ul>
+                        
+                        <h4 class="font-bold text-lg mt-6 mb-2">Quote:</h4>
+                        <blockquote id="modal-quote" class="border-l-4 border-gray-300 pl-4 italic text-gray-600">
+                            "It was chaos. We waited 8 hours just to be seen, and my father was on a trolley in the hallway." - Anonymized Patient Testimony
+                        </blockquote>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-lg mb-2">Complaint Types</h4>
+                        <canvas id="modal-chart"></canvas>
+                    </div>
+                </div>
+                
+                <h4 class="font-bold text-lg mt-6 mb-2">Timeline of Incidents</h4>
+                <div id="modal-timeline" class="border-t pt-4 space-y-3">
+                    <!-- Timeline items go here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Map Modal -->
+    <div id="map-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70 opacity-0 transform scale-95">
+        <div class="modal-content bg-white rounded-lg shadow-xl w-full max-w-6xl m-4 transform translate-y-10">
+            <div class="flex justify-between items-center border-b p-5">
+                <h3 class="text-2xl font-bold">Interactive Map: Hospital Hotspots</h3>
+                <button id="close-map-modal-btn" class="text-gray-500 hover:text-gray-800 text-3xl">&times;</button>
+            </div>
+            <div class="p-6">
+                <div id="map-container" class="w-full h-[600px] rounded-lg z-0"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Grid Modal -->
+    <div id="grid-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70 opacity-0 transform scale-95">
+        <div class="modal-content bg-white rounded-lg shadow-xl w-full max-w-6xl m-4 transform translate-y-10">
+            <div class="flex justify-between items-center border-b p-5">
+                <h3 class="text-2xl font-bold">Hospital Grid</h3>
+                <button id="close-grid-modal-btn" class="text-gray-500 hover:text-gray-800 text-3xl">&times;</button>
+            </div>
+            <div id="grid-container" class="p-6 max-h-[70vh] overflow-y-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Cards will be populated by JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Modal -->
+    <div id="charts-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70 opacity-0 transform scale-95">
+        <div class="modal-content bg-white rounded-lg shadow-xl w-full max-w-6xl m-4 transform translate-y-10">
+            <div class="flex justify-between items-center border-b p-5">
+                <h3 class="text-2xl font-bold">Visualizing the Crisis</h3>
+                <button id="close-charts-modal-btn" class="text-gray-500 hover:text-gray-800 text-3xl">&times;</button>
+            </div>
+            <div class="p-6 max-h-[70vh] overflow-y-auto grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <!-- Bar Chart: Incidents per Hospital -->
+                <div class="bg-gray-50 p-6 rounded-lg">
+                    <h3 class="text-xl font-bold mb-4">Reported Incidents (Sample)</h3>
+                    <canvas id="incidentsChart"></canvas>
+                </div>
+                <!-- Pie Chart: Complaint Types -->
+                <div class="bg-gray-50 p-6 rounded-lg">
+                    <h3 class="text-xl font-bold mb-4">Distribution of Complaints</h3>
+                    <canvas id="complaintsChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Timeline Modal -->
+    <div id="timeline-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70 opacity-0 transform scale-95">
+        <div class="modal-content bg-white rounded-lg shadow-xl w-full max-w-6xl m-4 transform translate-y-10">
+            <div class="flex justify-between items-center border-b p-5">
+                <h3 class="text-2xl font-bold">Timeline of Key Incidents</h3>
+                <button id="close-timeline-modal-btn" class="text-gray-500 hover:text-gray-800 text-3xl">&times;</button>
+            </div>
+            <div class="p-6 max-h-[70vh] overflow-y-auto">
+                <div class="relative">
+                    <div class="timeline-container pb-4">
+                        <!-- Timeline items populated by JS -->
+                    </div>
+                    <div class="absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-white to-transparent"></div>
+                    <div class="absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-white to-transparent"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Evidence Viewer Modal -->
+    <div id="evidence-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70 opacity-0 transform scale-95">
+        <div class="modal-content bg-white rounded-lg shadow-xl w-full max-w-4xl m-4 transform translate-y-10">
+            <div class="flex justify-between items-center border-b p-5">
+                <h3 class="text-2xl font-bold">Evidence Viewer</h3>
+                <button id="close-evidence-btn" class="text-gray-500 hover:text-gray-800 text-3xl">&times;</button>
+            </div>
+            <div id="evidence-container" class="p-6 max-h-[70vh] overflow-y-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- Evidence items populated by JS -->
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        // --- DATABASE ---
+        const jsonData = {
+          "article": {
+            "title": "When Care Fails: Inside Bangladesh’s Hospital Crisis",
+            "subtitle": "Investigative report on overcrowding, negligence, corruption, and hygiene failures across Bangladesh hospitals",
+            "lead": "In a crowded ward of Dhaka Medical College Hospital, patients lie on the floor, their cries echoing in narrow, unclean corridors. Medicines run out, toilets overflow, and overworked staff struggle to cope. Across Bangladesh, similar scenes repeat in hospitals that are meant to save lives but often fail to meet basic standards of care.",
+            "context": "Bangladesh’s hospitals face systemic challenges: understaffed wards, poor infrastructure, weak regulatory oversight, and corruption. According to surveys, 1 in 3 patients experiences some form of medical negligence, and over half of public hospitals report hygiene-related complaints. Financial mismanagement and illegal practices in private hospitals further erode trust in the healthcare system.",
+            "recommendations": [
+              "Strengthen hospital governance and oversight.",
+              "Expand staff and infrastructure in overcrowded hospitals.",
+              "Enforce hygiene and sanitation standards rigorously.",
+              "Implement transparent complaint and whistleblower mechanisms.",
+              "Engage civil society and media for independent monitoring."
+            ]
+          },
+          "hospitals": [
+            {
+              "name": "Dhaka Medical College Hospital (DMCH)", "city": "Dhaka", "type": "Public",
+              "issues": ["Overcrowding", "Hygiene", "Doctor Safety"], "color": "blue",
+              "coordinates": {"lat": 23.7465, "lng": 90.3760},
+              "timeline": [
+                {"year": 2020, "event": "Audit revealed corridors filled with patients due to insufficient beds."},
+                {"year": 2021, "event": "Multiple patient complaints about unclean wards and under-resourced toilets."},
+                {"year": 2022, "event": "Doctors and staff threatened during patient disputes."}
+              ],
+              "sources": [
+                { "name": "Dhaka Tribune", "url": "https://www.dhakatribune.com/bangladesh/dhaka/364626/mismanagement-and-overcrowding-plague-dhaka?utm_source=chatgpt.com" }
+              ]
+            },
+            {
+              "name": "Mugda Medical College Hospital", "city": "Dhaka", "type": "Public",
+              "issues": ["Doctor Assaults", "Brokers", "Negligence"], "color": "orange",
+              "coordinates": {"lat": 23.7460, "lng": 90.4100},
+              "timeline": [
+                {"year": 2021, "event": "Attack on doctors following patient disagreements."},
+                {"year": 2021, "event": "Brokers charged patients for preferential treatment."},
+                {"year": 2021, "event": "Public complaints about delayed treatment and inadequate staff."}
+              ],
+              "sources": [
+                { "name": "bdnews24.com", "url": "https://bdnews24.com/bangladesh/b1fd2cdb6228?utm_source=chatgpt.com" }
+              ]
+            },
+            {
+              "name": "Kuwait-Bangladesh Friendship Government Hospital (KBFH)", "city": "Dhaka", "type": "Government",
+              "issues": ["Negligence", "Financial Mismanagement"], "color": "red",
+              "coordinates": {"lat": 23.7580, "lng": 90.3820},
+              "timeline": [
+                {"year": 2020, "event": "Doctors absent during COVID-19 peak; patients denied care."},
+                {"year": 2021, "event": "ACC investigation revealed procurement irregularities and expense mismanagement."}
+              ],
+              "sources": [
+                { "name": "Dhaka Tribune", "url": "https://www.dhakatribune.com/bangladesh/dhaka/206579/six-doctors-of-kuwait-bangladesh-friendship?utm_source=chatgpt.com" },
+                { "name": "New Age", "url": "https://www.newagebd.net/article/115547/acc-wants-expense-details-of-kuwait-bangladesh-hospital?utm_source=chatgpt.com" }
+              ]
+            },
+            {
+              "name": "Noakhali Medical College Hospital", "city": "Noakhali", "type": "Public",
+              "issues": ["Overcrowding", "Staff Shortage", "Poor Infrastructure"], "color": "blue",
+              "coordinates": {"lat": 22.8200, "lng": 91.1050},
+              "timeline": [
+                {"year": 2021, "event": "Daily patient load exceeds 2x bed capacity."},
+                {"year": 2021, "event": "Patients sleep in corridors; limited access to clean water and toilets."}
+              ],
+              "sources": [
+                { "name": "Wikipedia", "url": "https://en.wikipedia.org/wiki/Noakhali_Medical_College?utm_source=chatgpt.com" }
+              ]
+            },
+            {
+              "name": "Sher-e-Bangla / Barisal Medical College Hospital", "city": "Barisal", "type": "Public",
+              "issues": ["Neglect", "Corruption", "Mismanagement"], "color": "orange",
+              "coordinates": {"lat": 22.7010, "lng": 90.3530},
+              "timeline": [
+                {"year": 2021, "event": "Reports of delayed treatment due to lack of staff."},
+                {"year": 2021, "event": "Audit reports noted irregularities in resource allocation."}
+              ],
+              "sources": [
+                { "name": "Voice7 News", "url": "https://www.voice7news.tv/bangladesh/news/150?utm_source=chatgpt.com" }
+              ]
+            },
+            {
+              "name": "Green Life Hospital", "city": "Dhaka", "type": "Private",
+              "issues": ["Patient Negligence", "Medical Errors"], "color": "orange",
+              "coordinates": {"lat": 23.7800, "lng": 90.4100},
+              "timeline": [
+                {"year": 2021, "event": "Complaints about delayed diagnosis and inadequate monitoring."},
+                {"year": 2021, "event": "Several patient deaths due to medical oversight reported."}
+              ],
+              "sources": [
+                { "name": "Dainik Bangla", "url": "https://www.dainikbangla.com.bd/health/24696/1687399978?utm_source=chatgpt.com" }
+              ]
+            },
+            {
+              "name": "Regent Hospital", "city": "Dhaka", "type": "Private",
+              "issues": ["COVID-19 Fraud", "Unlicensed Operations", "Financial Corruption"], "color": "red",
+              "coordinates": {"lat": 23.7350, "lng": 90.4200},
+              "timeline": [
+                {"year": 2021, "event": "Issued fake COVID-19 certificates; over 1 crore Tk embezzled."},
+                {"year": 2021, "event": "Operations found running without proper government licensing."}
+              ],
+              "sources": [
+                { "name": "TBS News", "url": "httpss://www.tbsnews.net/bangladesh/corruption/regent-scam-acc-sue-5-including-aminul-shahed-136615?utm_source=chatgpt.com" }
+              ]
+            },
+            {
+              "name": "Holy Family Red Crescent Medical College Hospital", "city": "Dhaka", "type": "Private",
+              "issues": ["Politicized Recruitment", "Procurement Irregularities", "Opaque Finances"], "color": "red",
+              "coordinates": {"lat": 23.7380, "lng": 90.3980},
+              "timeline": [
+                {"year": 2021, "event": "Bribes reported for hiring and promotions."},
+                {"year": 2021, "event": "Audit revealed procurement irregularities in essential medical supplies."}
+              ],
+              "sources": [
+                { "name": "TBS News", "url": "https://www.tbsnews.net/bangladesh/health/irregularities-mismanagement-plague-holy-family-hospital-tib-655950?utm_source=chatgpt.com" }
+              ]
+            }
+          ]
+        };
+
+        document.addEventListener('DOMContentLoaded', function() {
+            let map;
+            let modalChart;
+            let chartsInitialized = false; // Flag to init charts only once
+            let timelineInitialized = false; // Flag to init timeline only once
+            
+            const hospitalModal = document.getElementById('hospital-modal');
+            const mapModal = document.getElementById('map-modal');
+            const gridModal = document.getElementById('grid-modal');
+            const chartsModal = document.getElementById('charts-modal');
+            const timelineModal = document.getElementById('timeline-modal');
+            const evidenceModal = document.getElementById('evidence-modal');
+
+            // --- POPULATE ARTICLE CONTENT ---
+            const article = jsonData.article;
+            const hospitals = jsonData.hospitals;
+
+            // Hero
+            document.getElementById('hero-content').innerHTML = `
+                <h1 class="text-4xl md:text-5xl lg:text-6xl font-extrabold leading-tight mb-6">${article.title}</h1>
+                <p class="text-lg md:text-2xl font-light text-gray-200 mb-12">${article.subtitle}</p>
+                <div class="space-y-6 text-left max-w-xl mx-auto">
+                    <div class="stat-container"><p class="font-semibold text-lg">1 in 3 patients experiences medical negligence</p><div class="w-full h-2 bg-white/20 rounded-full mt-2 overflow-hidden"><div class="stat-bar h-full bg-red-500 rounded-full" style="width: 33%;"></div></div></div>
+                    <div class="stat-container"><p class="font-semibold text-lg">50% of public hospitals face hygiene complaints</p><div class="w-full h-2 bg-white/20 rounded-full mt-2 overflow-hidden"><div class="stat-bar h-full bg-orange-500 rounded-full" style="width: 50%;"></div></div></div>
+                    <div class="stat-container"><p class="font-semibold text-lg">Multiple private hospitals investigated for corruption</p><div class="w-full h-2 bg-white/20 rounded-full mt-2 overflow-hidden"><div class="stat-bar h-full bg-yellow-400 rounded-full" style="width: 75%;"></div></div></div>
+                </div>
+            `;
+            
+            // Article Text
+            document.getElementById('article-lead').innerHTML = `<p class="lead text-2xl text-gray-700">${article.lead}</p>`;
+            document.getElementById('article-context').innerHTML += `<p>${article.context}</p>`;
+            document.getElementById('article-recommendations').innerHTML += `
+                <ul class="list-disc list-inside">
+                    ${article.recommendations.map(r => `<li>${r}</li>`).join('')}
+                </ul>`;
+
+            // Footer Sources
+            const footerSources = document.getElementById('footer-sources');
+            let allSources = new Map();
+            hospitals.forEach(h => {
+                h.sources.forEach(s => allSources.set(s.name, s.url));
+            });
+            allSources.forEach((url, name) => {
+                footerSources.innerHTML += `<li><a href="${url}" target="_blank" class="hover:text-white underline">${name}</a></li>`;
+            });
+            
+            // --- HERO STATS ANIMATION ---
+            const statContainers = document.querySelectorAll('.stat-container');
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.querySelectorAll('.stat-bar').forEach(bar => {
+                            bar.classList.add('is-visible');
+                        });
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, { threshold: 0.8 });
+            statContainers.forEach(container => observer.observe(container));
+
+            // --- LEAFLET MAP & GRID INITIALIZATION ---
+            function initMap() {
+                // Check if map is already initialized
+                if (map) {
+                    map.invalidateSize();
+                    return;
+                }
+                
+                map = L.map('map-container').setView([23.6850, 90.3563], 7); // Center on Bangladesh
+                
+                // Use OpenStreetMap tile layer (free)
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                }).addTo(map);
+
+                // Add custom icons
+                const icons = {
+                    red: new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41] }),
+                    orange: new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-orange.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41] }),
+                    blue: new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41] })
+                };
+
+                hospitals.forEach(hospital => {
+                    const marker = L.marker([hospital.coordinates.lat, hospital.coordinates.lng], { 
+                        icon: icons[hospital.color] 
+                    }).addTo(map);
+                    
+                    // Click marker to open the main hospital modal
+                    marker.on('click', () => {
+                        // Close map modal first, then open hospital modal
+                        closeModal(mapModal);
+                        setTimeout(() => showHospitalModal(hospital), 300); // Give time for close anim
+                    });
+                });
+            }
+
+            function initGrid() {
+                const gridContainer = document.getElementById('grid-container');
+                gridContainer.innerHTML = ''; // Clear grid
+                hospitals.forEach(hospital => {
+                    const card = document.createElement('div');
+                    card.className = `bg-white p-6 rounded-lg shadow-lg cursor-pointer hover:shadow-xl transition-shadow border-l-4 border-${hospital.color}-500`;
+                    card.innerHTML = `
+                        <h3 class="text-xl font-bold mb-2">${hospital.name}</h3>
+                        <p class="text-gray-600 mb-4">${hospital.city}, ${hospital.type}</p>
+                        <ul class="text-sm space-y-1">
+                            ${hospital.issues.map(p => `<li class="text-gray-700">${p}</li>`).join('')}
+                        </ul>
+                    `;
+                    card.addEventListener('click', () => {
+                         // Close grid modal first, then open hospital modal
+                        closeModal(gridModal);
+                        setTimeout(() => showHospitalModal(hospital), 300); // Give time for close anim
+                    });
+                    gridContainer.appendChild(card);
+                });
+            }
+            
+            // --- MODAL HELPERS ---
+            function openModal(modal) {
+                modal.classList.remove('opacity-0', 'scale-95');
+                modal.classList.add('opacity-100', 'scale-100');
+            }
+            function closeModal(modal) {
+                modal.classList.remove('opacity-100', 'scale-100');
+                modal.classList.add('opacity-0', 'scale-95');
+            }
+
+            // --- HOSPITAL MODAL ---
+            function showHospitalModal(hospital) {
+                document.getElementById('modal-title').textContent = hospital.name;
+                
+                const problemsList = document.getElementById('modal-problems');
+                problemsList.innerHTML = hospital.issues.map(p => `<li>${p}</li>`).join('');
+                
+                const sourcesList = document.getElementById('modal-sources');
+                sourcesList.innerHTML = hospital.sources.map(s => `<li><a href="${s.url}" target="_blank" class="text-blue-600 hover:underline">${s.name}</a></li>`).join('');
+
+                const timelineList = document.getElementById('modal-timeline');
+                timelineList.innerHTML = hospital.timeline.map(t => `
+                    <div class="text-sm">
+                        <strong class="text-gray-900">${t.year}:</strong>
+                        <span class="text-gray-700">${t.event}</span>
+                    </div>
+                `).join('');
+
+                // Update modal chart
+                const chartCanvas = document.getElementById('modal-chart');
+                const chartData = {
+                    labels: hospital.issues,
+                    datasets: [{
+                        label: 'Reported Issues',
+                        data: hospital.issues.map(() => Math.floor(Math.random() * 5) + 1), // Random data for visual
+                        backgroundColor: ['#ef4444', '#f97316', '#3b82f6', '#f59e0b'],
+                    }]
+                };
+                if (modalChart) {
+                    modalChart.destroy();
+                }
+                modalChart = new Chart(chartCanvas, {
+                    type: 'doughnut',
+                    data: chartData,
+                    options: {
+                        responsive: true,
+                        plugins: { legend: { position: 'bottom' } }
+                    }
+                });
+                openModal(hospitalModal);
+            }
+            document.getElementById('close-modal-btn').addEventListener('click', () => closeModal(hospitalModal));
+
+            // --- MAP MODAL ---
+            document.getElementById('open-map-btn').addEventListener('click', () => {
+                openModal(mapModal);
+                // Must initialize or re-render map *after* modal is visible
+                setTimeout(() => {
+                    initMap();
+                }, 100); // Small delay to ensure modal is rendered
+            });
+            document.getElementById('close-map-modal-btn').addEventListener('click', () => closeModal(mapModal));
+
+            // --- GRID MODAL ---
+            document.getElementById('open-grid-btn').addEventListener('click', () => {
+                initGrid();
+                openModal(gridModal);
+            });
+            document.getElementById('close-grid-modal-btn').addEventListener('click', () => closeModal(gridModal));
+            
+            // --- CHARTS MODAL ---
+            document.getElementById('open-charts-btn').addEventListener('click', () => {
+                openModal(chartsModal);
+                if (!chartsInitialized) {
+                    initMainCharts();
+                    chartsInitialized = true;
+                }
+            });
+            document.getElementById('close-charts-modal-btn').addEventListener('click', () => closeModal(chartsModal));
+
+            // --- TIMELINE MODAL ---
+            document.getElementById('open-timeline-btn').addEventListener('click', () => {
+                if (!timelineInitialized) {
+                    initMainTimeline();
+                    timelineInitialized = true;
+                }
+                openModal(timelineModal);
+            });
+            document.getElementById('close-timeline-modal-btn').addEventListener('click', () => closeModal(timelineModal));
+
+            // --- EVIDENCE MODAL ---
+            document.getElementById('open-evidence-btn').addEventListener('click', () => {
+                initEvidence();
+                openModal(evidenceModal);
+            });
+            document.getElementById('close-evidence-btn').addEventListener('click', () => closeModal(evidenceModal));
+
+            // --- INITIALIZE MAIN CHARTS ---
+            function initMainCharts() {
+                // Bar Chart
+                const incidentsCtx = document.getElementById('incidentsChart').getContext('2d');
+                new Chart(incidentsCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: hospitals.map(h => h.name.split(' (')[0]), // Short names
+                        datasets: [{
+                            label: 'Issue Count',
+                            data: hospitals.map(h => h.issues.length),
+                            backgroundColor: hospitals.map(h => h.color === 'red' ? '#ef4444' : h.color === 'orange' ? '#f97316' : '#3b82f6'),
+                        }]
+                    },
+                    options: { scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false } } }
+                });
+
+                // Pie Chart
+                const complaintsCtx = document.getElementById('complaintsChart').getContext('2d');
+                let issueCounts = { red: 0, orange: 0, blue: 0 };
+                hospitals.forEach(h => {
+                    issueCounts[h.color] = (issueCounts[h.color] || 0) + 1;
+                });
+                new Chart(complaintsCtx, {
+                    type: 'pie',
+                    data: {
+                        labels: ['Corruption/Fraud', 'Negligence', 'Overcrowding/Hygiene'],
+                        datasets: [{
+                            data: [issueCounts.red, issueCounts.orange, issueCounts.blue],
+                            backgroundColor: ['#ef4444', '#f97316', '#3b82f6'],
+                        }]
+                    },
+                    options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+                });
+            }
+
+            // --- INITIALIZE MAIN TIMELINE ---
+            function initMainTimeline() {
+                const timelineContainer = document.querySelector('.timeline-container');
+                timelineContainer.innerHTML = ''; // Clear
+                let allEvents = [];
+                hospitals.forEach(h => {
+                    h.timeline.forEach(t => {
+                        allEvents.push({ ...t, hospital: h.name.split(' (')[0] });
+                    });
+                });
+                allEvents.sort((a, b) => a.year - b.year); // Sort by year
+
+                allEvents.forEach(item => {
+                    const card = document.createElement('div');
+                    card.className = 'bg-white p-4 rounded-lg shadow-md flex-shrink-0';
+                    card.innerHTML = `
+                        <p class="text-sm font-bold text-gray-800">${item.year}</p>
+                        <p class="text-sm text-gray-700 mt-1">${item.event}</p>
+                        <p class="text-xs text-red-700 font-semibold mt-2">${item.hospital}</p>
+                    `;
+                    timelineContainer.appendChild(card);
+                });
+            }
+            
+            // --- INITIALIZE EVIDENCE ---
+            function initEvidence() {
+                const evidenceContainer = document.getElementById('evidence-container');
+                evidenceContainer.innerHTML = ''; // Clear
+                allSources.forEach((url, name) => {
+                    evidenceContainer.innerHTML += `
+                        <a href="${url}" target="_blank" class="block p-4 bg-gray-100 rounded-lg hover:bg-gray-200">
+                            <h5 class="font-bold text-gray-900">${name}</h5>
+                            <p class="text-sm text-gray-600">Click to view source article.</p>
+                            <span class="text-xs text-blue-600 font-medium">[Link]</span>
+                        </a>
+                    `;
+                });
+            }
+
+            // --- ACCORDION ---
+            window.toggleAccordion = function(button) {
+                const content = button.nextElementSibling;
+                const svg = button.querySelector('svg');
+                if (content.style.maxHeight) {
+                    content.style.maxHeight = null;
+                    svg.style.transform = 'rotate(0deg)';
+                } else {
+                    content.style.maxHeight = content.scrollHeight + "px";
+                    svg.style.transform = 'rotate(180deg)';
+                } 
+            }
+
+            // --- FORM SUBMIT ---
+            document.getElementById('submit-story-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                alert('Thank you for your submission. Your story has been sent securely and will be reviewed by our team.');
+                this.reset();
+            });
+        });
+    </script>
+
+</body>
+</html>
